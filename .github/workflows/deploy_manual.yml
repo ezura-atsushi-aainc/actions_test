@@ -1,0 +1,165 @@
+name: Deploy manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        required: true
+        type: choice
+        description: デプロイ先の環境
+        options:
+          - verify
+          - verify1
+          - verify2
+          - verify3
+          - verify4
+        default: verify
+
+env:
+  AWS_REGION: ap-northeast-1
+  ECR_REGISTRY: 967907375941.dkr.ecr.ap-northeast-1.amazonaws.com
+  ECS_CLUSTER: ${{ github.event.inputs.deploy_env }}-letro
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Notify starting Deploy Slack
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: C06C00PUF4G
+            type: "mrkdwn"
+            text: "${{ github.event.inputs.deploy_env }}へのデプロイを開始しました"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Setup environment
+        run: |
+          cp -f .env.${{ github.event.inputs.deploy_env }} .env
+          docker network create letro || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Build ugc set tag
+        working-directory: ./public_tag
+        run: |
+          cp .env.${{ github.event.inputs.deploy_env }} .env
+          npm ci
+          npm run ${{ github.event.inputs.deploy_env }}
+
+      - name: Replace public tag markers
+        run: |
+          sed -i -e 's/<#DOMAIN>/${{ github.event.inputs.deploy_env }}.letro.jp/g' ./public_tag/tags/js/letro.js
+          sed -i -e 's/<#API_DOMAIN>/${{ github.event.inputs.deploy_env }}-api.letro.jp/g' ./public_tag/tags/js/letro-output.js
+          sed -i -e 's/<#DELIBIRD_DOMAIN>/${{ github.event.inputs.deploy_env }}-log.letro.jp/g' ./public_tag/tags/js/letro-output.js
+          sed -i -e 's/<#PARTS_DOMAIN>/p01.owned.letro.jp/g' ./public_tag/tags/js/letro-output.js
+          sed -i -e 's/<#ASSET_DOMAIN>/${{ github.event.inputs.deploy_env }}.letro.jp/g' ./public_tag/tags/js/letro-output.js
+          sed -i -e 's/<#API_DOMAIN>/${{ github.event.inputs.deploy_env }}-api.letro.jp/g' ./public_tag/tags/js/report.js
+
+      - name: Build review tag
+        working-directory: ./tag_resources
+        run: |
+          cp .env.${{ github.event.inputs.deploy_env }} .env
+          npm ci
+          npm run prod-build
+
+      # サイト編集用に本体の依存を先にインストール
+      - name: Install main dependencies
+        run: npm ci
+
+      - name: Build content publish tag
+        working-directory: ./tag_contents
+        run: |
+          npm ci
+          rm -rf ./src/api
+          npx openapi2aspida -i contentApi.json -o ./src/api
+          npm run build-verify
+          cp ./dist/assets/letro-content.js ../public_tag/tags/js/letro-content.js
+          cp ./dist/assets/letro-content-css-selector.js ../public_tag/tags/js/letro-content-css-selector.js
+
+      - name: Build main frontend app
+        run: |
+          npm run lang:build
+          npm run route:build
+          npm run prod
+
+      - name: Build and push letro/stage image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/base/stage/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/letro/stage:latest
+            letro/stage:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push services
+        uses: docker/bake-action@v4
+        with:
+          files: |
+            docker-compose.yml
+            docker-compose-${{ github.event.inputs.deploy_env }}.yml
+          push: true
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
+
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition my-task-definition-family --query taskDefinition > task-definition.json
+
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: task-definition.json
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{github.event.inputs.deploy_env}}-letro-web,${{github.event.inputs.deploy_env}}-letro-tag,${{github.event.inputs.deploy_env}}-letro-scheduler,${{github.event.inputs.deploy_env}}-letro-horizon-default,${{github.event.inputs.deploy_env}}-letro-horizon-long-running,${{github.event.inputs.deploy_env}}-letro-horizon-crawler
+          force-new-deployment: true
+          wait-for-service-stability: true
+
+      - name: Backup files
+        run: |
+          mkdir -p deploy_bk
+          timestamp=$(date "+%Y%m%d_%H%M%S")
+          mv public_tag/tags/js/letro-output.js ./deploy_bk/letro-output.js.$timestamp
+          mv public_tag/tags/js/letro.js ./deploy_bk/letro.js.$timestamp
+          mv public_tag/tags/js/report.js ./deploy_bk/report.js.$timestamp
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker system prune -f
+
+      - name: Notify Deploy done Slack
+        uses: slackapi/slack-github-action@v2
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: C06C00PUF4G
+            type: "mrkdwn"
+            text: "*✅ ${{ github.event.inputs.deploy_env }}へのデプロイが完了しました*"

@@ -1,0 +1,23 @@
+name: Deploy to Verify3
+
+on:
+  push:
+    branches:
+      - feature/test
+
+env:
+  DEPLOY_ENV: verify3
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: trigger deploy workflow
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: deploy_manual.yml
+
