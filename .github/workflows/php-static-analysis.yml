@@ -44,8 +44,7 @@ jobs:
         with:
           commit_message: "ci: apply php-cs-fixer auto fixes"
           file_pattern: |
-            app/**/*.php
-            tests/**/*.php
+            $(cat changed_files.txt)
 
   phpmd:
     if: startsWith(github.head_ref, 'feature/')
