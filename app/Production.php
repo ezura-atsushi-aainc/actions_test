@@ -5,7 +5,7 @@ namespace App\Production;
 class Production
 {
     /** @var int */
-    private $x;
+private $x;
 
          /** @var int */
     private
