@@ -13,7 +13,7 @@ class Production
     /** @var int */
     private $z;
 
-    public function __construct()
+      public function __construct()
     {
                  $this->x = 1;
         $this->y = 2;
