@@ -32,6 +32,7 @@ jobs:
       - name: Run PHP CS Fixer (custom config) on changed files
         run: |
           if [ -s changed_files.txt ]; then
+            cat changed_files.txt
             xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
           else
             echo "No PHP files to fix!"
