@@ -26,8 +26,8 @@ class Production
                     = 3;
     }
 
-    public function getX(): int {
-        return $this->x; }
+  public function getX(): int {
+          return $this->x; }
 
         public function getY(): int
   {
