@@ -11,76 +11,73 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.2
+          php-version: "8.2"
 
-      - name: Composer install
-        run: composer install --prefer-dist --no-progress
+      - name: Download php-cs-fixer.phar
+        run: |
+          curl -L https://cs.symfony.com/download/php-cs-fixer-v3.phar -o php-cs-fixer.phar
+          chmod +x php-cs-fixer.phar
 
       - name: Get changed files in PR
-        id: files
         run: |
-          # list only .php files under app/ in the PR diff
           git fetch origin ${{ github.base_ref }}
           git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^app/.*\.php$' > changed_files.txt || true
 
-      - name: Run PHP CS Fixer
-        if: |
-          steps.files.outputs.files != ''
+      - name: Run PHP CS Fixer on changed files
         run: |
           if [ -s changed_files.txt ]; then
-            xargs vendor/bin/php-cs-fixer fix --using-cache=no < changed_files.txt
+            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no
           else
             echo "No PHP files to fix!"
           fi
 
-      - name: Commit changes if there are any
+      - name: Commit changes if any
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "ci: apply php-cs-fixer auto fixes"
-          file_pattern: |
-            app/**/*.php
+          file_pattern: app/**/*.php
 
   phpmd:
     name: PHP Mess Detector (phpmd) with reviewdog
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.2
+          php-version: "8.2"
 
-      - name: Composer install
-        run: composer install --prefer-dist --no-progress
+      - name: Download phpmd.phar
+        run: |
+          curl -L https://phpmd.org/static/latest/phpmd.phar -o phpmd.phar
+          chmod +x phpmd.phar
+
+      - name: Install reviewdog
+        run: |
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b . latest
 
       - name: Get changed files in PR
-        id: files
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^app/.*\.php$' > changed_files.txt || true
 
       - name: Run phpmd with reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s changed_files.txt ]; then
-            npx -y reviewdog@latest -reporter=github-pr-review \
-              -name="phpmd" \
-              -efm="%f:%l\t%m" \
-              --filter-mode=diff_context \
-              --fail-on-error=false \
-              --diff="git diff origin/${{ github.base_ref }}" \
-              -- tee >(xargs -I{} vendor/bin/phpmd {} text ./phpmd.xml)
+            while read file; do
+              php phpmd.phar "$file" text codesize,design,naming,unusedcode || true
+            done < changed_files.txt > phpmd-result.txt
+
+            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false
           else
             echo "No PHP files to lint!"
           fi
-
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
