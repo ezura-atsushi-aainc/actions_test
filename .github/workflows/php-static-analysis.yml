@@ -37,9 +37,6 @@ jobs:
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
 
-      - name: Debug: Show changed files
-        run: cat changed_files.txt || true
-
       - name: Run PHP CS Fixer (PHP 7.3) on changed files
         run: |
           if [ -s changed_files.txt ]; then
@@ -88,9 +85,6 @@ jobs:
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
 
-      - name: Debug: Show changed files
-        run: cat changed_files.txt || true
-
       - name: Run phpmd (PHP 7.3コード対応, custom config) with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,9 +129,6 @@ jobs:
       - name: Get changed files in PR
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
-
-      - name: Debug: Show changed files
-        run: cat changed_files.txt || true
 
       - name: Run phpstan (PHP 7.3想定) with reviewdog
         env:
