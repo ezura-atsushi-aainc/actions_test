@@ -1,0 +1,126 @@
+---
+name: PHP Static Analysis
+permissions:
+  contents: write
+  pull-requests: write
+on:
+  pull_request:
+    paths: [app/**/*.php, tests/**/*.php]
+jobs:
+  php-cs-fixer:
+    if: startsWith(github.head_ref, 'feature/')
+    name: PHP CS Fixer autofix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+      - name: Download php-cs-fixer.phar
+        run: |
+          curl -L https://cs.symfony.com/download/php-cs-fixer-v3.phar -o php-cs-fixer.phar
+          chmod +x php-cs-fixer.phar
+      - name: Ensure base branch is fetched
+        run: git fetch origin ${{ github.base_ref }}
+      - name: Get changed files in PR
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+      - name: Run PHP CS Fixer (custom config) on changed files
+        run: |
+          if [ -s changed_files.txt ]; then
+            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
+          else
+            echo "No PHP files to fix!"
+          fi
+      - name: Collect changed files as output
+        id: get-files
+        run: |
+          echo "files=$(paste -sd' ' changed_files.txt)" >> $GITHUB_OUTPUT
+      - name: Commit changes if any
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'ci: apply php-cs-fixer auto fixes'
+          file_pattern: ${{ steps.get-files.outputs.files }}
+  phpmd:
+    if: startsWith(github.head_ref, 'feature/')
+    name: PHP Mess Detector (phpmd) with reviewdog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+      - name: Download phpmd.phar
+        run: |
+          curl -L https://phpmd.org/static/latest/phpmd.phar -o phpmd.phar
+          chmod +x phpmd.phar
+      - name: Install reviewdog
+        run: |
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b . latest
+      - name: Ensure base branch is fetched
+        run: git fetch origin ${{ github.base_ref }}
+      - name: Get changed files in PR
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+      - name: Run phpmd (custom config) with reviewdog, print outputs
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s changed_files.txt ]; then
+            while read file; do
+              php phpmd.phar "$file" text phpmd.xml || true
+            done < changed_files.txt > phpmd-result.txt || true
+            echo "=== PHPMD OUTPUT ==="
+            cat phpmd-result.txt || true
+            # 相対パス化（重要！）
+            sed "s|$PWD/||" phpmd-result.txt > phpmd-result-relpath.txt
+            echo "=== REVIEWDOG INPUT (after path fix) ==="
+            cat phpmd-result-relpath.txt || true
+            cat phpmd-result-relpath.txt | ./reviewdog -efm="%f:%l  %m" -name="phpmd" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false -level=info -tee || true
+          else
+            echo "No PHP files to lint!"
+          fi
+  phpstan:
+    if: startsWith(github.head_ref, 'feature/')
+    name: PHPStan with reviewdog PR comments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+      - name: Download phpstan.phar
+        run: |
+          curl -L https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o phpstan.phar
+          chmod +x phpstan.phar
+      - name: Install reviewdog
+        run: |
+          curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b . latest
+      - name: Ensure base branch is fetched
+        run: git fetch origin ${{ github.base_ref }}
+      - name: Get changed files in PR
+        run: |
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+      - name: Run phpstan and post reviewdog comments
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |-
+          if [ -s changed_files.txt ]; then
+            php phpstan.phar analyse --error-format=raw -l max --no-progress $(cat changed_files.txt) > phpstan-result.txt || true
+            sed "s|$PWD/||" phpstan-result.txt > phpstan-result-relpath.txt
+            cat phpstan-result-relpath.txt | ./reviewdog -efm="%f:%l:%m" -name="phpstan" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false -level=info -tee || true
+          else
+            echo "No PHP files to analyse!"
+          fi
