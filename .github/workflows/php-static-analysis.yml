@@ -23,7 +23,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "7.3"
+          php-version: "8.0" # php-cs-fixerが推奨するバージョンでOK
 
       - name: Download php-cs-fixer.phar
         run: |
@@ -37,10 +37,14 @@ jobs:
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
 
-      - name: Run PHP CS Fixer (custom config) on changed files
+      - name: Debug: Show changed files
+        run: cat changed_files.txt || true
+
+      - name: Run PHP CS Fixer (PHP 7.3) on changed files
         run: |
           if [ -s changed_files.txt ]; then
-            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
+            # --php-version=703 を指定してPHP7.3用コード解析
+            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --php-version=703 --config=.php-cs-fixer.php
           else
             echo "No PHP files to fix!"
           fi
@@ -66,7 +70,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "7.3"
+          php-version: "8.0"
 
       - name: Download phpmd.phar
         run: |
@@ -84,11 +88,15 @@ jobs:
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
 
-      - name: Run phpmd (custom config) with reviewdog
+      - name: Debug: Show changed files
+        run: cat changed_files.txt || true
+
+      - name: Run phpmd (PHP 7.3コード対応, custom config) with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s changed_files.txt ]; then
+            # phpmdはパースエラーが出なければ、7.3構文でも解析可能
             while read file; do
               php phpmd.phar "$file" text phpmd.xml || true
             done < changed_files.txt > phpmd-result.txt
@@ -99,7 +107,7 @@ jobs:
 
   phpstan:
     if: startsWith(github.head_ref, 'feature/')
-    name: PHPStan (Static Analysis) with reviewdog
+    name: PHPStan (Static Analysis, PHP 7.3) with reviewdog
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,7 +118,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "7.3"
+          php-version: "8.0"
 
       - name: Download phpstan.phar
         run: |
@@ -128,12 +136,16 @@ jobs:
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
 
-      - name: Run phpstan with reviewdog
+      - name: Debug: Show changed files
+        run: cat changed_files.txt || true
+
+      - name: Run phpstan (PHP 7.3想定) with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s changed_files.txt ]; then
-            php phpstan.phar analyse --error-format=raw -l max --no-progress $(cat changed_files.txt) > phpstan-result.txt || true
+            # phpstan.neonで `phpVersion: 70300` の指定をおすすめ
+            php phpstan.phar analyse --error-format=raw -l max --no-progress --php-version=70300 $(cat changed_files.txt) > phpstan-result.txt || true
             cat phpstan-result.txt | ./reviewdog -efm="%f:%l:%m" -name="phpstan" -reporter=github-pr-review -fail-on-error=false
           else
             echo "No PHP files to analyse!"
