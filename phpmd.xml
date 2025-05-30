@@ -18,16 +18,4 @@
             <property name="reportLevel" value="10"/>
         </properties>
     </rule>
-
-    <!-- オプション: LongMethodの警告閾値を変更したい場合 -->
-    <rule ref="rulesets/codesize.xml/LongMethod">
-        <properties>
-            <property name="minimum" value="40"/>
-        </properties>
-    </rule>
-
-    <!-- オプション: プロジェクトポリシーに合わせ除外ルールを記載可
-    <exclude-pattern>tests/*</exclude-pattern>
-    -->
-
 </ruleset>
