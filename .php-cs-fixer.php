@@ -168,6 +168,7 @@ return (new PhpCsFixer\Config())
         'simple_to_complex_string_variable'           => true,
         'simplified_null_return'                      => true,
         'single_blank_line_before_namespace'          => true,
+        'blank_lines_before_namespace'                => false,
         'single_line_comment_style'                   => true,
         'single_quote'                                => true,
         'space_after_semicolon'                       => ['remove_in_empty_for_expressions' => true],
@@ -182,25 +183,3 @@ return (new PhpCsFixer\Config())
         'yoda_style'                                  => ['equal' => false, 'identical' => false],
     ])
     ->setFinder($finder);
-
-        // 'ordered_class_elements' => [
-        //     'order' => [
-        //         'use_trait',
-        //         'constant_public',
-        //         'constant_protected',
-        //         'constant_private',
-        //         'property_public',
-        //         'property_protected',
-        //         'property_private',
-        //         'construct',
-        //         'destruct',
-        //     ],
-        // ],
-        // 'phpdoc_align' => [
-        //     'tags' => [
-        //         'param',
-        //         'property',
-        //         'type',
-        //         'var',
-        //     ],
-        // ],
