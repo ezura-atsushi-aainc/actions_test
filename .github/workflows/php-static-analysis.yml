@@ -83,7 +83,7 @@ jobs:
             while read file; do
               php phpmd.phar "$file" text phpmd.xml || true
             done < changed_files.txt > phpmd-result.txt || true
-            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false || true
+            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false --filter-mode=nofilter || true
           else
             echo "No PHP files to lint!"
           fi
