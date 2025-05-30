@@ -11,7 +11,7 @@ class Production
     private $y;
 
     /** @var int */
-    private $z;
+      private $z;
 
       public function __construct()
     {
