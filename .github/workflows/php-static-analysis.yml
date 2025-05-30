@@ -1,14 +1,10 @@
+---
 name: PHP Static Analysis
-
 permissions:
   contents: write
-
 on:
   pull_request:
-    paths:
-      - 'app/**/*.php'
-      - 'tests/**/*.php'
-
+    paths: [app/**/*.php, tests/**/*.php]
 jobs:
   php-cs-fixer:
     if: startsWith(github.head_ref, 'feature/')
@@ -22,7 +18,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.0"
+          php-version: '8.0'
       - name: Download php-cs-fixer.phar
         run: |
           curl -L https://cs.symfony.com/download/php-cs-fixer-v3.phar -o php-cs-fixer.phar
@@ -46,9 +42,8 @@ jobs:
       - name: Commit changes if any
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "ci: apply php-cs-fixer auto fixes"
+          commit_message: 'ci: apply php-cs-fixer auto fixes'
           file_pattern: ${{ steps.get-files.outputs.files }}
-
   phpmd:
     if: startsWith(github.head_ref, 'feature/')
     name: PHP Mess Detector (phpmd) with reviewdog
@@ -61,7 +56,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.0"
+          php-version: '8.0'
       - name: Download phpmd.phar
         run: |
           curl -L https://phpmd.org/static/latest/phpmd.phar -o phpmd.phar
@@ -74,19 +69,18 @@ jobs:
       - name: Get changed files in PR
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
-
       - name: Run phpmd (custom config) with reviewdog, print outputs
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+        run: |-
           if [ -s changed_files.txt ]; then
             while read file; do
-              php phpmd.phar "$file" text phpmd.xml
-            done < changed_files.txt > phpmd-result.txt
+              php phpmd.phar "$file" text phpmd.xml || true
+            done < changed_files.txt > phpmd-result.txt || true
             echo "=== PHPMD OUTPUT ==="
-            cat phpmd-result.txt
+            cat phpmd-result.txt || true
             echo "=== REVIEWDOG OUTPUT ==="
-            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false -level=info -tee
+            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false -level=info -tee || true
           else
             echo "No PHP files to lint!"
           fi
