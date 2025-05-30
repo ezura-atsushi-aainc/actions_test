@@ -7,8 +7,9 @@ class Production
     /** @var int */
     private $x;
 
-    /** @var int */
-    private $y;
+         /** @var int */
+    private
+      $y;
 
   /** @var int */
       private $z;
