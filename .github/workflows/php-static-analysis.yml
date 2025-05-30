@@ -28,15 +28,16 @@ jobs:
       - name: Get changed files in PR
         run: |
           git fetch origin ${{ github.base_ref }}
-          git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} # | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
       - name: Run PHP CS Fixer (custom config) on changed files
         run: |
-          if [ -s changed_files.txt ]; then
-            cat changed_files.txt
-            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
-          else
-            echo "No PHP files to fix!"
-          fi
+          php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
+          # if [ -s changed_files.txt ]; then
+          #   cat changed_files.txt
+          #   xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
+          # else
+          #   echo "No PHP files to fix!"
+          # fi
       - name: Commit changes if any
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

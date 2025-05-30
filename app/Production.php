@@ -10,7 +10,7 @@ class Production
     /** @var int */
     private $y;
 
-    /** @var int */
+  /** @var int */
       private $z;
 
       public function __construct()
