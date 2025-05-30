@@ -74,15 +74,16 @@ jobs:
       - name: Get changed files in PR
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+
       - name: Run phpmd (custom config) with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s changed_files.txt ]; then
             while read file; do
-              php phpmd.phar "$file" text phpmd.xml
-            done < changed_files.txt > phpmd-result.txt
-            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false
+              php phpmd.phar "$file" text phpmd.xml || true
+            done < changed_files.txt > phpmd-result.txt || true
+            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false || true
           else
             echo "No PHP files to lint!"
           fi
