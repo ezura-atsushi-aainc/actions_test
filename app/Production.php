@@ -19,7 +19,7 @@ class Production
         $this->y = 2;
 
                  $this->z
-                     = 3;
+                    = 3;
     }
 
     public function getX(): int {
