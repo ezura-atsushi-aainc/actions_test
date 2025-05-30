@@ -20,6 +20,11 @@ class Production
         $this->z = 3;
     }
 
+    public function getY(): int
+    {
+        return $this->z;
+    }
+
     public function getX(): int
     {
         return $this->x;
@@ -28,10 +33,5 @@ class Production
     public function getY(): int
     {
         return (string)$this->y;
-    }
-
-    public function getY(): int
-    {
-        return $this->z;
     }
 }
