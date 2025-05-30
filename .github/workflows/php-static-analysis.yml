@@ -118,7 +118,7 @@ jobs:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |-
           if [ -s changed_files.txt ]; then
-            php phpstan.phar analyse --error-format=raw -l max --no-progress --php-version=70300 $(cat changed_files.txt) > phpstan-result.txt || true
+            php phpstan.phar analyse --error-format=raw -l max --no-progress $(cat changed_files.txt) > phpstan-result.txt || true
             sed "s|$PWD/||" phpstan-result.txt > phpstan-result-relpath.txt
             cat phpstan-result-relpath.txt | ./reviewdog -efm="%f:%l:%m" -name="phpstan" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false -level=info -tee || true
           else
