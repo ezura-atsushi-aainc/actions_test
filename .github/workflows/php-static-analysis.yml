@@ -75,15 +75,18 @@ jobs:
         run: |
           git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
 
-      - name: Run phpmd (custom config) with reviewdog
+      - name: Run phpmd (custom config) with reviewdog, print outputs
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s changed_files.txt ]; then
             while read file; do
-              php phpmd.phar "$file" text phpmd.xml || true
-            done < changed_files.txt > phpmd-result.txt || true
-            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false --filter-mode=nofilter || true
+              php phpmd.phar "$file" text phpmd.xml
+            done < changed_files.txt > phpmd-result.txt
+            echo "=== PHPMD OUTPUT ==="
+            cat phpmd-result.txt
+            echo "=== REVIEWDOG OUTPUT ==="
+            cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -filter-mode=nofilter -fail-on-error=false -level=info -tee
           else
             echo "No PHP files to lint!"
           fi
