@@ -10,10 +10,14 @@ class Production
     /** @var int */
     private $y;
 
+    /** @var int */
+    private $z;
+
     public function __construct()
     {
         $this->x = 1;
         $this->y = 2;
+        $this->z = 3;
     }
 
     public function getX(): int
@@ -24,5 +28,10 @@ class Production
     public function getY(): int
     {
         return (string)$this->y;
+    }
+
+    public function getY(): int
+    {
+        return $this->z;
     }
 }
