@@ -25,10 +25,10 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
-      - name: Run PHP CS Fixer on changed files
+      - name: Run PHP CS Fixer (custom config) on changed files
         run: |
           if [ -s changed_files.txt ]; then
-            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no
+            xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
           else
             echo "No PHP files to fix!"
           fi
@@ -61,13 +61,13 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
-      - name: Run phpmd with reviewdog
+      - name: Run phpmd (custom config) with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s changed_files.txt ]; then
             while read file; do
-              php phpmd.phar "$file" text codesize,design,naming,unusedcode || true
+              php phpmd.phar "$file" text phpmd.xml || true
             done < changed_files.txt > phpmd-result.txt
             cat phpmd-result.txt | ./reviewdog -efm="%f:%l\t%m" -name="phpmd" -reporter=github-pr-review -fail-on-error=false
           else
