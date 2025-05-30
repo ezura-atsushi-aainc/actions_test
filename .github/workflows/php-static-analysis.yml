@@ -5,7 +5,6 @@ permissions:
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
     paths:
       - 'app/**/*.php'
       - 'tests/**/*.php'
@@ -17,26 +16,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "7.3"
+
       - name: Download php-cs-fixer.phar
         run: |
           curl -L https://cs.symfony.com/download/php-cs-fixer-v3.phar -o php-cs-fixer.phar
           chmod +x php-cs-fixer.phar
+
+      - name: Ensure base branch is fetched
+        run: git fetch origin ${{ github.base_ref }}
+
       - name: Get changed files in PR
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+
+      - name: Debug: Show changed files
+        run: cat changed_files.txt || true
+
       - name: Run PHP CS Fixer (custom config) on changed files
         run: |
-          cat changed_files.txt
           if [ -s changed_files.txt ]; then
             xargs -a changed_files.txt php php-cs-fixer.phar fix --using-cache=no --config=.php-cs-fixer.php
           else
             echo "No PHP files to fix!"
           fi
+
       - name: Commit changes if any
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
@@ -51,21 +62,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "7.3"
+
       - name: Download phpmd.phar
         run: |
           curl -L https://phpmd.org/static/latest/phpmd.phar -o phpmd.phar
           chmod +x phpmd.phar
+
       - name: Install reviewdog
         run: |
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b . latest
+
+      - name: Ensure base branch is fetched
+        run: git fetch origin ${{ github.base_ref }}
+
       - name: Get changed files in PR
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+
+      - name: Debug: Show changed files
+        run: cat changed_files.txt || true
+
       - name: Run phpmd (custom config) with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,21 +109,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: "7.3"
+
       - name: Download phpstan.phar
         run: |
           curl -L https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar -o phpstan.phar
           chmod +x phpstan.phar
+
       - name: Install reviewdog
         run: |
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b . latest
+
+      - name: Ensure base branch is fetched
+        run: git fetch origin ${{ github.base_ref }}
+
       - name: Get changed files in PR
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git diff --name-only origin/${{ github.base_ref }}...${{ github.head_ref }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+          git diff --name-only origin/${{ github.base_ref }}...${{ github.sha }} | grep -E '^app/.*\.php$|^tests/.*\.php$' > changed_files.txt || true
+
+      - name: Debug: Show changed files
+        run: cat changed_files.txt || true
+
       - name: Run phpstan with reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
