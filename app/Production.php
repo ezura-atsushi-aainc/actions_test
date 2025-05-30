@@ -10,7 +10,7 @@ class Production
     
     $x;
 
-         /** @var int */
+       /** @var int */
     private
       $y;
 
