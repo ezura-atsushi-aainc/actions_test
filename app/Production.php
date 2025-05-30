@@ -22,7 +22,7 @@ class Production
                  $this->x = 1;
         $this->y = 2;
 
-                 $this->z
+               $this->z
                     = 3;
     }
 
