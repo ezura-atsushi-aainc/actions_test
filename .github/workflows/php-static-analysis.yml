@@ -2,14 +2,13 @@ name: PHP Static Analysis
 
 on:
   pull_request:
-    branches:
-      - 'feature/*'
     paths:
       - 'app/**/*.php'
       - 'tests/**/*.php'
 
 jobs:
   php-cs-fixer:
+    if: startsWith(github.head_ref, 'feature/')
     name: PHP CS Fixer autofix
     runs-on: ubuntu-latest
     steps:
@@ -42,6 +41,7 @@ jobs:
             tests/**/*.php
 
   phpmd:
+    if: startsWith(github.head_ref, 'feature/')
     name: PHP Mess Detector (phpmd) with reviewdog
     runs-on: ubuntu-latest
     steps:
@@ -75,6 +75,7 @@ jobs:
           fi
 
   phpstan:
+    if: startsWith(github.head_ref, 'feature/')
     name: PHPStan (Static Analysis) with reviewdog
     runs-on: ubuntu-latest
     steps:
